@@ -1,5 +1,6 @@
 # S25_roboticsII
-ROS2 Workspace for S25 RoboticsII
+ROS2 Workspace for S25 RoboticsII Group Ducky
+Group Members: Patricia Cai, Venkat Churukupalli, Jeff Lee, Peggy Tobar
 
 ## Fork the repository
 
