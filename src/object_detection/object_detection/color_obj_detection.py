@@ -60,15 +60,19 @@ class ColorObjDetectionNode(Node):
         self.get_logger().info('Color Object Detection Node Started')
         
         # Declare the parameters for the color detection
-        self.declare_parameter('color_low', [110, 50, 150])
-        self.declare_parameter('color_high', [130, 255, 255])
-        self.declare_parameter('object_size_min', 1000)
+        color_low = self.declare_parameter('color_low', [110, 50, 150]).get_parameter_value().integer_array_value
+        color_high = self.declare_parameter('color_high', [130, 255, 255]).get_parameter_value().integer_array_value
+        object_size_min = self.declare_parameter('object_size_min', 1000).get_parameter_value().integer_value
+        self.get_logger().info(f'Set color_low to {color_low}, color_high to {color_high}, object_size_min to {object_size_min}')
+        
         # Used to convert between ROS and OpenCV images
         self.br = CvBridge()
+        self.get_logger().info('CV Bridge initialized')
         
         # Create a transform listener
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
+        self.get_logger().info('Transform listener and buffer initialized')
         
         # Create publisher for the detected object and the bounding box
         self.pub_detected_obj = self.create_publisher(Image, '/detected_color_object',10)
@@ -82,7 +86,7 @@ class ColorObjDetectionNode(Node):
         self.ts.registerCallback(self.camera_callback)
 
     def camera_callback(self, rgb_msg, points_msg):
-        #self.get_logger().info('Received RGB and Depth Messages')
+        self.get_logger().info('Received RGB and Depth Messages')
         # get ROS parameters
         param_color_low = np.array(self.get_parameter('color_low').value)
         param_color_high = np.array(self.get_parameter('color_high').value)
@@ -97,14 +101,21 @@ class ColorObjDetectionNode(Node):
         color_mask = cv2.inRange(hsv_image, param_color_low, param_color_high)
         # find largest contour
         contours, _ = cv2.findContours(color_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        self.get_logger().info(f'Found {len(contours)} contours')
+
+        if not contours:
+            self.get_logger().info('No contours found')
+            return
+            
         if len(contours) > 0:
             largest_contour = max(contours, key=cv2.contourArea)
             x, y, w, h = cv2.boundingRect(largest_contour)
             # threshold by size
             if w * h < param_object_size_min:
-                self.get_logger().info("Object too small")
+                self.get_logger().info("Ignoring detected object: too small or out of size range")
                 return
             # draw rectangle
+            self.get_logger().info(f'Drawing bounding box at {x}, {y}, width {w}, height {h}')
             rgb_image=cv2.rectangle(rgb_image, (x, y), (x + w, y + h), (0, 0, 255), 2)
             center_x = int(x + w / 2)
             center_y = int(y + h / 2)
